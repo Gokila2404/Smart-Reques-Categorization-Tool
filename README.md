@@ -38,17 +38,18 @@ SRCT is a web app for submitting complaints/requests, automatically categorizing
 - Backend: `http://localhost:5000`
 
 ## Deployment
-### Backend (Render)
+### Backend (Railway)
 1. Push this repo to GitHub.
-2. In Render, click **New** → **Blueprint** and select your repo (uses `render.yaml`).
-3. Set environment variables:
+2. In Railway, create a new project from this repo.
+3. Set the service **Root Directory** to `server`.
+4. Set environment variables:
    - `MONGO_URI`
    - `JWT_SECRET`
-4. Deploy and copy your API URL, e.g. `https://your-api.onrender.com`.
+5. Deploy and copy your API URL, e.g. `https://your-api.up.railway.app`.
 
 ### Frontend (Vercel)
 1. In Vercel, import the same repo.
 2. Set **Root Directory** to `client`.
 3. Add environment variable:
-   - `REACT_APP_API_BASE_URL` = `https://your-api.onrender.com/api`
+   - `REACT_APP_API_BASE_URL` = `https://your-api.up.railway.app/api`
 4. Deploy.
