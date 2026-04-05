@@ -22,17 +22,17 @@ const complaintSchema = new mongoose.Schema(
     },
     place: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
     },
     date: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
     },
     time: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
     },
     description: {

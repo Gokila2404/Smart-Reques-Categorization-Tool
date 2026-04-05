@@ -24,13 +24,33 @@ export const getUserComplaints = async (token) => {
   return res.data;
 };
 
+export const getMyComplaintById = async (id, token) => {
+  const res = await client.get(API_ENDPOINTS.USER.COMPLAINT_BY_ID(id), authHeaders(token));
+  return res.data;
+};
+
 export const createComplaint = async (data, token) => {
   const res = await client.post(API_ENDPOINTS.USER.COMPLAINTS, data, authHeaders(token));
   return res.data;
 };
 
+export const updateMyComplaint = async (id, data, token) => {
+  const res = await client.put(API_ENDPOINTS.USER.COMPLAINT_BY_ID(id), data, authHeaders(token));
+  return res.data;
+};
+
+export const deleteMyComplaint = async (id, token) => {
+  const res = await client.delete(API_ENDPOINTS.USER.COMPLAINT_BY_ID(id), authHeaders(token));
+  return res.data;
+};
+
 export const getAdminComplaints = async (token) => {
   const res = await client.get(API_ENDPOINTS.ADMIN.COMPLAINTS, authHeaders(token));
+  return res.data;
+};
+
+export const getAdminComplaintById = async (id, token) => {
+  const res = await client.get(API_ENDPOINTS.ADMIN.COMPLAINT_BY_ID(id), authHeaders(token));
   return res.data;
 };
 
@@ -41,5 +61,10 @@ export const updateComplaintStatus = async (id, status, token) => {
 
 export const addAdminRemarks = async (id, remarks, token) => {
   const res = await client.put(API_ENDPOINTS.ADMIN.REMARKS_BY_ID(id), { remarks }, authHeaders(token));
+  return res.data;
+};
+
+export const deleteAdminComplaint = async (id, token) => {
+  const res = await client.delete(API_ENDPOINTS.ADMIN.COMPLAINT_BY_ID(id), authHeaders(token));
   return res.data;
 };

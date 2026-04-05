@@ -2,15 +2,13 @@ export const ROUTES = {
   LOGIN: "/",
   REGISTER: "/register",
   USER_DASHBOARD: "/dashboard/user",
+  USER_REQUEST_DETAILS: (id = ":id") => `/user/request/${id}`,
   USER_PROFILE: "/user/profile",
   USER_CATEGORIES: "/user/categories",
   ADMIN_DASHBOARD: "/dashboard/admin",
-  ADMIN_QUEUE: "/admin/queue",
-  ADMIN_ACTIVITY: "/admin/activity",
-  USER_NOTIFICATIONS: "/user/notifications",
+  ADMIN_REQUEST_DETAILS: (id = ":id") => `/admin/request/${id}`,
   USER_REQUEST_GUIDE: "/user/request-guide",
   USER_HELP_CENTER: "/user/help-center",
-  ADMIN_NOTIFICATIONS: "/admin/notifications",
   ADMIN_REPORTS: "/admin/reports",
 };
 
