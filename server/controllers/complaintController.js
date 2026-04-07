@@ -1,6 +1,7 @@
 const Complaint = require("../models/Complaint");
 const User = require("../models/User");
 const categorizeComplaint = require("../utils/categorize");
+const determinePriority = require("../utils/priority");
 
 const assignAdminByCategory = async (category) => {
   const admin = await User.findOne({ role: "admin", adminDomain: category }).select("_id");
@@ -12,13 +13,14 @@ const assignAdminByCategory = async (category) => {
 
 exports.createComplaint = async (req, res) => {
   try {
-    const { title, place = "", date = "", time = "", description } = req.body;
+    const { title, place = "", date = "", time = "", description, priority } = req.body;
 
     if (!title || !description) {
       return res.status(400).json({ message: "Title and description are required" });
     }
 
     const category = categorizeComplaint(description);
+    const resolvedPriority = priority || determinePriority(title, description);
     const adminId = await assignAdminByCategory(category);
 
     const complaint = await Complaint.create({
@@ -28,8 +30,26 @@ exports.createComplaint = async (req, res) => {
       time: time.trim(),
       description: description.trim(),
       category,
+      priority: resolvedPriority,
       userId: req.user.id,
       adminId,
+      statusHistory: [
+        {
+          action: "Submitted",
+          status: "New",
+          note: "Complaint submitted",
+          by: req.user.id,
+        },
+      ],
+      attachment: req.file
+        ? {
+          url: `/uploads/${req.file.filename}`,
+          originalName: req.file.originalname,
+          fileName: req.file.filename,
+          mimeType: req.file.mimetype,
+          size: req.file.size,
+        }
+        : undefined,
     });
 
     return res.status(201).json(complaint);
@@ -76,7 +96,7 @@ exports.updateMyComplaint = async (req, res) => {
       return res.status(404).json({ message: "Complaint not found" });
     }
 
-    const { title, place, date, time, description } = req.body;
+    const { title, place, date, time, description, priority } = req.body;
 
     if (title !== undefined) complaint.title = title.trim();
     if (place !== undefined) complaint.place = place.trim();
@@ -87,6 +107,48 @@ exports.updateMyComplaint = async (req, res) => {
       complaint.category = categorizeComplaint(description);
       complaint.adminId = await assignAdminByCategory(complaint.category);
     }
+    if (priority !== undefined) {
+      complaint.priority = priority;
+    }
+
+    complaint.statusHistory.push({
+      action: "Updated",
+      status: complaint.status,
+      note: "User updated complaint details",
+      by: req.user.id,
+    });
+
+    await complaint.save();
+    return res.json(complaint);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.addFeedback = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rating, comment = "" } = req.body;
+
+    const complaint = await Complaint.findOne({ _id: id, userId: req.user.id });
+    if (!complaint) {
+      return res.status(404).json({ message: "Complaint not found" });
+    }
+    if (complaint.status !== "Solved") {
+      return res.status(400).json({ message: "Feedback is allowed only after complaint is solved" });
+    }
+
+    complaint.feedback = {
+      rating,
+      comment: comment.trim(),
+      submittedAt: new Date(),
+    };
+    complaint.statusHistory.push({
+      action: "Feedback",
+      status: complaint.status,
+      note: `User rating ${rating}`,
+      by: req.user.id,
+    });
 
     await complaint.save();
     return res.json(complaint);

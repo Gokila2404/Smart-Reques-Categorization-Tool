@@ -9,6 +9,8 @@ const {
   getAdmins,
   getAdminById,
   deleteComplaint,
+  getAdminStats,
+  getDashboardAnalytics,
 } = require("../controllers/adminController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 const { validateObjectIdParam, validateStatus } = require("../middleware/validationMiddleware");
@@ -19,6 +21,8 @@ router.get("/users", protect, authorize("admin"), getUsers);
 router.get("/users/:id", protect, authorize("admin"), validateObjectIdParam("id"), getUserById);
 router.get("/admins", protect, authorize("admin"), getAdmins);
 router.get("/admins/:id", protect, authorize("admin"), validateObjectIdParam("id"), getAdminById);
+router.get("/stats", protect, authorize("admin"), getAdminStats);
+router.get("/analytics", protect, authorize("admin"), getDashboardAnalytics);
 router.get("/complaints", protect, authorize("admin"), getAdminComplaints);
 router.get("/complaint/:id", protect, authorize("admin"), validateObjectIdParam("id"), getAdminComplaintById);
 router.put("/complaint/:id", protect, authorize("admin"), validateObjectIdParam("id"), validateStatus, updateComplaintStatus);

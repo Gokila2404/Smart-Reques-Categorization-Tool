@@ -66,6 +66,12 @@ export default function NotificationsPanel({ role, variant = "page", onClose }) 
   }, [statusKey]);
 
   const loadNotifications = useCallback(async () => {
+    if (!auth?.token) {
+      setItems([]);
+      setError("Session expired. Please log in again.");
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError("");
@@ -115,7 +121,13 @@ export default function NotificationsPanel({ role, variant = "page", onClose }) 
       setItems(normalized.sort((a, b) => new Date(b.time) - new Date(a.time)));
     } catch (err) {
       const fallback = role === "admin" ? "Unable to load admin alerts" : "Unable to load notifications";
-      setError(err.response?.data?.message || fallback);
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        setError("Session expired or unauthorized. Please log in again.");
+      } else if (err.code === "ERR_NETWORK") {
+        setError("Cannot reach the server. Please check that the backend is running.");
+      } else {
+        setError(err.response?.data?.message || fallback);
+      }
     } finally {
       setLoading(false);
     }
@@ -127,11 +139,12 @@ export default function NotificationsPanel({ role, variant = "page", onClose }) 
   }, [auth?.token, loadNotifications]);
 
   useEffect(() => {
+    if (!auth?.token) return;
     const interval = setInterval(() => {
       loadNotifications();
     }, 20000);
     return () => clearInterval(interval);
-  }, [loadNotifications]);
+  }, [auth?.token, loadNotifications]);
 
   const filteredItems = useMemo(() => {
     const visible = items.filter((item) => !dismissed.has(item.id));
@@ -204,8 +217,9 @@ export default function NotificationsPanel({ role, variant = "page", onClose }) 
           </select>
         </div>
         {error && <div className="error-text">{error}</div>}
-        {loading && <div className="empty" style={{ marginTop: 12 }}>Loading notifications...</div>}
-        {!loading && filteredItems.length === 0 ? (
+        {loading ? (
+          <div className="empty" style={{ marginTop: 12 }}>Loading notifications...</div>
+        ) : filteredItems.length === 0 ? (
           <div className="empty" style={{ marginTop: 12 }}>{emptyText}</div>
         ) : (
           <div className="notif-list">

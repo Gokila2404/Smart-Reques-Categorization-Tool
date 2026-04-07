@@ -30,19 +30,24 @@ const validateLogin = (req, res, next) => {
 };
 
 const validateComplaintCreate = (req, res, next) => {
-  const { title, description } = req.body;
+  const { title, description, priority } = req.body;
+  const validPriorities = ["High", "Medium", "Low"];
 
   if (!isNonEmptyString(title) || !isNonEmptyString(description)) {
     return res.status(400).json({ message: "Title and description are required" });
+  }
+  if (priority !== undefined && !validPriorities.includes(priority)) {
+    return res.status(400).json({ message: "Invalid priority" });
   }
 
   return next();
 };
 
 const validateComplaintUpdate = (req, res, next) => {
-  const { title, description, place, date, time } = req.body;
+  const { title, description, place, date, time, priority } = req.body;
+  const validPriorities = ["High", "Medium", "Low"];
 
-  const hasAnyField = [title, description, place, date, time].some((value) => value !== undefined);
+  const hasAnyField = [title, description, place, date, time, priority].some((value) => value !== undefined);
   if (!hasAnyField) {
     return res.status(400).json({ message: "At least one field is required to update" });
   }
@@ -52,6 +57,9 @@ const validateComplaintUpdate = (req, res, next) => {
     if (value !== undefined && !isNonEmptyString(value)) {
       return res.status(400).json({ message: `${key} must be a non-empty string` });
     }
+  }
+  if (priority !== undefined && !validPriorities.includes(priority)) {
+    return res.status(400).json({ message: "Invalid priority" });
   }
 
   return next();
@@ -73,6 +81,20 @@ const validateObjectIdParam = (paramName = "id") => (req, res, next) => {
   return next();
 };
 
+const validateFeedback = (req, res, next) => {
+  const { rating, comment = "" } = req.body;
+  const ratingNum = Number(rating);
+
+  if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+    return res.status(400).json({ message: "Rating must be an integer between 1 and 5" });
+  }
+  if (comment !== undefined && typeof comment !== "string") {
+    return res.status(400).json({ message: "Comment must be a string" });
+  }
+  req.body.rating = ratingNum;
+  return next();
+};
+
 module.exports = {
   validateRegister,
   validateLogin,
@@ -80,4 +102,5 @@ module.exports = {
   validateComplaintUpdate,
   validateStatus,
   validateObjectIdParam,
+  validateFeedback,
 };

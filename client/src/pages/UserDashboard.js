@@ -2,8 +2,45 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { ROUTES } from "../constants/paths";
-import { createComplaint, getUserComplaints } from "../services/api";
+import { API_BASE_URL } from "../constants/apiPaths";
+import { addComplaintFeedback, createComplaint, getUserComplaints } from "../services/api";
 import NotificationsPanel from "../components/NotificationsPanel";
+
+const priorityBadgeClass = (priority) => {
+  if (priority === "High") return "priority-pill priority-high";
+  if (priority === "Low") return "priority-pill priority-low";
+  return "priority-pill priority-medium";
+};
+
+const renderStars = (count) => "★".repeat(count);
+const formatDateTime = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+};
+const getSuggestions = (titleValue, descriptionValue) => {
+  const text = `${titleValue} ${descriptionValue}`.toLowerCase();
+  const suggestions = [];
+
+  if (text.includes("network") || text.includes("wifi") || text.includes("internet")) {
+    suggestions.push("Check WiFi settings and reconnect");
+    suggestions.push("Restart your router or hotspot");
+    suggestions.push("Contact lab assistant if the issue persists");
+  }
+  if (text.includes("fee") || text.includes("payment") || text.includes("receipt")) {
+    suggestions.push("Verify payment status in the portal");
+    suggestions.push("Attach your fee receipt for faster resolution");
+  }
+  if (text.includes("discipline") || text.includes("conduct")) {
+    suggestions.push("Provide time and location of the incident");
+  }
+  if (text.includes("general") || text.includes("query") || text.includes("question")) {
+    suggestions.push("Check the help center for common questions");
+  }
+
+  return Array.from(new Set(suggestions)).slice(0, 4);
+};
 
 export default function UserDashboard() {
   const { auth, logout } = useContext(AuthContext);
@@ -14,6 +51,8 @@ export default function UserDashboard() {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("Medium");
+  const [attachment, setAttachment] = useState(null);
   const [complaints, setComplaints] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -22,6 +61,12 @@ export default function UserDashboard() {
   const [filter, setFilter] = useState("All");
   const [showForm, setShowForm] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackTarget, setFeedbackTarget] = useState(null);
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackSaving, setFeedbackSaving] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
 
   const loadComplaints = useCallback(async () => {
     try {
@@ -45,12 +90,24 @@ export default function UserDashboard() {
 
     try {
       setSubmitting(true);
-      await createComplaint({ title, place, date, time, description }, auth.token);
+      const payload = new FormData();
+      payload.append("title", title);
+      payload.append("place", place);
+      payload.append("date", date);
+      payload.append("time", time);
+      payload.append("description", description);
+      payload.append("priority", priority);
+      if (attachment) {
+        payload.append("attachment", attachment);
+      }
+      await createComplaint(payload, auth.token);
       setTitle("");
       setPlace("");
       setDate("");
       setTime("");
       setDescription("");
+      setPriority("Medium");
+      setAttachment(null);
       setSuccess("Request submitted successfully.");
       loadComplaints();
     } catch (err) {
@@ -100,6 +157,48 @@ export default function UserDashboard() {
     navigate(ROUTES.LOGIN);
   };
 
+  const openFeedback = (complaint) => {
+    setFeedbackTarget(complaint);
+    setFeedbackRating(5);
+    setFeedbackComment("");
+    setFeedbackError("");
+    setShowFeedback(true);
+  };
+
+  const saveFeedback = async () => {
+    if (!feedbackTarget) return;
+    try {
+      setFeedbackSaving(true);
+      await addComplaintFeedback(
+        feedbackTarget._id,
+        { rating: feedbackRating, comment: feedbackComment },
+        auth.token
+      );
+      setShowFeedback(false);
+      setFeedbackTarget(null);
+      loadComplaints();
+    } catch (err) {
+      setFeedbackError(err.response?.data?.message || "Unable to save feedback");
+    } finally {
+      setFeedbackSaving(false);
+    }
+  };
+
+  const resolveAttachmentUrl = (attachmentUrl) => {
+    if (!attachmentUrl) return "";
+    if (attachmentUrl.startsWith("http")) return attachmentUrl;
+    const baseUrl = API_BASE_URL.replace(/\/api\/?$/, "");
+    return `${baseUrl}${attachmentUrl}`;
+  };
+
+  const latestAction = (complaint) => {
+    if (!complaint?.statusHistory?.length) return "No actions yet";
+    const last = complaint.statusHistory[complaint.statusHistory.length - 1];
+    return `${last.action || "Update"} · ${formatDateTime(last.at)}`;
+  };
+
+  const suggestions = getSuggestions(title, description);
+
   return (
     <div className="user-shell">
       <header className="user-topbar">
@@ -118,7 +217,7 @@ export default function UserDashboard() {
             onClick={() => setShowNotif(true)}
           >
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-              <path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Z"/>
+              <path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Z" />
             </svg>
           </button>
           <div className="user-chip">
@@ -130,58 +229,193 @@ export default function UserDashboard() {
           </div>
           <button className="icon-btn" type="button" aria-label="Logout" onClick={handleLogout}>
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-              <path fill="currentColor" d="M14 7V5H5v14h9v-2H7V7h7Zm3.59 5-2.3 2.29 1.41 1.42L21.41 12l-4.71-3.71-1.41 1.42 2.3 2.29H10v2h7.59Z"/>
+              <path fill="currentColor" d="M14 7V5H5v14h9v-2H7V7h7Zm3.59 5-2.3 2.29 1.41 1.42L21.41 12l-4.71-3.71-1.41 1.42 2.3 2.29H10v2h7.59Z" />
             </svg>
           </button>
         </div>
       </header>
 
-      <section className="user-hero">
-        <div>
-          <h1>My Dashboard</h1>
-          <p>Welcome back, {auth?.user?.name}</p>
-        </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setShowForm((prev) => !prev);
-          }}
-          type="button"
-        >
-          + New Complaint
-        </button>
-      </section>
+      <main className="dashboard-content">
+        <section className="user-hero">
+          <div>
+            <h1>My Dashboard</h1>
+            <p>Welcome back, {auth?.user?.name}</p>
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setShowForm((prev) => !prev);
+            }}
+            type="button"
+          >
+            + New Complaint
+          </button>
+        </section>
 
-      {showNotif && (
-        <div className="notif-drawer">
-          <div className="notif-drawer-backdrop" onClick={() => setShowNotif(false)} />
-          <NotificationsPanel role="user" variant="drawer" onClose={() => setShowNotif(false)} />
-        </div>
-      )}
+        {showNotif && (
+          <div className="notif-drawer">
+            <div className="notif-drawer-backdrop" onClick={() => setShowNotif(false)} />
+            <NotificationsPanel role="user" variant="drawer" onClose={() => setShowNotif(false)} />
+          </div>
+        )}
 
-      <section className="user-kpis">
-        <div className="kpi-card kpi-new">
-          <div className="kpi-icon">!</div>
-          <div>
-            <div className="kpi-value">{summary.new}</div>
-            <div className="kpi-label">New</div>
-          </div>
+        <div className="dashboard-grid">
+          <section className="user-kpis">
+            <div className="kpi-card kpi-new">
+              <div className="kpi-icon">!</div>
+              <div>
+                <div className="kpi-value">{summary.new}</div>
+                <div className="kpi-label">New</div>
+              </div>
+            </div>
+            <div className="kpi-card kpi-progress">
+              <div className="kpi-icon">T</div>
+              <div>
+                <div className="kpi-value">{summary.progress}</div>
+                <div className="kpi-label">In Progress</div>
+              </div>
+            </div>
+            <div className="kpi-card kpi-solved">
+              <div className="kpi-icon">V</div>
+              <div>
+                <div className="kpi-value">{summary.solved}</div>
+                <div className="kpi-label">Solved</div>
+              </div>
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="card-header">
+              <div>
+                <h3>My Complaints</h3>
+                <p>{complaints.length} total complaints</p>
+              </div>
+              <select value={filter} onChange={(e) => setFilter(e.target.value)} className="select filter-select">
+                <option>All</option>
+                <option>New</option>
+                <option>In Progress</option>
+                <option>Solved</option>
+              </select>
+            </div>
+            {loading && <div className="empty">Loading requests...</div>}
+            {!loading && filteredComplaints.length === 0 && (
+              <div className="empty">No requests found for selected filter.</div>
+            )}
+            {!loading && filteredComplaints.length > 0 && (
+              <>
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Assigned To</th>
+                        <th>Attachment</th>
+                        <th>Feedback</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredComplaints.map((c) => (
+                        <tr key={c._id}>
+                          <td>{c.requestId}</td>
+                          <td>{c.title}</td>
+                          <td><span className="tag">{c.category}</span></td>
+                          <td><span className={priorityBadgeClass(c.priority)}>{c.priority || "Medium"}</span></td>
+                          <td><span className={statusClass(c.status)}>{c.status}</span></td>
+                          <td>{c.date || "-"}</td>
+                          <td>{assignedTo(c.category)}</td>
+                          <td>
+                            {c.attachment?.url ? (
+                              <a
+                                href={resolveAttachmentUrl(c.attachment.url)}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                View
+                              </a>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                          <td>
+                            {c.feedback?.rating ? (
+                              <div className="feedback-cell">
+                                <span className="feedback-stars">{renderStars(c.feedback.rating)}</span>
+                                <span className="feedback-text">{c.feedback.comment || "No comment"}</span>
+                              </div>
+                            ) : c.status === "Solved" ? (
+                              <button className="btn btn-ghost btn-sm" type="button" onClick={() => openFeedback(c)}>
+                                Give Feedback
+                              </button>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="complaint-cards">
+                  {filteredComplaints.map((c) => (
+                    <div className="complaint-card" key={c._id}>
+                      <div className="complaint-card-head">
+                        <div>
+                          <div className="complaint-title">{c.title}</div>
+                          <div className="complaint-id">{c.requestId}</div>
+                        </div>
+                        <div className="complaint-badges">
+                          <span className={priorityBadgeClass(c.priority)}>{c.priority || "Medium"}</span>
+                          <span className={statusClass(c.status)}>{c.status}</span>
+                        </div>
+                      </div>
+                      <div className="complaint-meta">
+                        <span className="tag">{c.category}</span>
+                        <span className="meta-text">Assigned: {assignedTo(c.category)}</span>
+                      </div>
+                      <div className="complaint-log">
+                        <div><strong>Submitted:</strong> {formatDateTime(c.createdAt)}</div>
+                        <div><strong>Updated:</strong> {formatDateTime(c.updatedAt)}</div>
+                        <div><strong>Latest:</strong> {latestAction(c)}</div>
+                      </div>
+                      <div className="complaint-actions">
+                        {c.attachment?.url ? (
+                          <a
+                            className="btn btn-muted btn-sm"
+                            href={resolveAttachmentUrl(c.attachment.url)}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            View Attachment
+                          </a>
+                        ) : (
+                          <span className="muted-row">No attachment</span>
+                        )}
+                        {c.feedback?.rating ? (
+                          <div className="feedback-cell">
+                            <span className="feedback-stars">{renderStars(c.feedback.rating)}</span>
+                            <span className="feedback-text">{c.feedback.comment || "No comment"}</span>
+                          </div>
+                        ) : c.status === "Solved" ? (
+                          <button className="btn btn-ghost btn-sm" type="button" onClick={() => openFeedback(c)}>
+                            Give Feedback
+                          </button>
+                        ) : (
+                          <span className="muted-row">Feedback available after solved</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
         </div>
-        <div className="kpi-card kpi-progress">
-          <div className="kpi-icon">T</div>
-          <div>
-            <div className="kpi-value">{summary.progress}</div>
-            <div className="kpi-label">In Progress</div>
-          </div>
-        </div>
-        <div className="kpi-card kpi-solved">
-          <div className="kpi-icon">V</div>
-          <div>
-            <div className="kpi-value">{summary.solved}</div>
-            <div className="kpi-label">Solved</div>
-          </div>
-        </div>
-      </section>
+      </main>
 
       {showForm && (
         <div className="modal-backdrop" onClick={() => setShowForm(false)}>
@@ -193,7 +427,7 @@ export default function UserDashboard() {
               </div>
               <button className="icon-btn" type="button" aria-label="Close" onClick={() => setShowForm(false)}>
                 <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                  <path fill="currentColor" d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4Z"/>
+                  <path fill="currentColor" d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4Z" />
                 </svg>
               </button>
             </div>
@@ -232,12 +466,35 @@ export default function UserDashboard() {
                   />
                 </div>
               </div>
+              <label className="field-label">Priority</label>
+              <select className="select" value={priority} onChange={(e) => setPriority(e.target.value)}>
+                <option>High</option>
+                <option>Medium</option>
+                <option>Low</option>
+              </select>
               <label className="field-label">Description</label>
               <textarea
                 placeholder="Describe your complaint in detail..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="textarea"
+              />
+              {suggestions.length > 0 && (
+                <div className="suggestion-box">
+                  <div className="suggestion-title">Quick Suggestions</div>
+                  <ul className="suggestion-list">
+                    {suggestions.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <label className="field-label">Attachment (optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setAttachment(e.target.files?.[0] || null)}
+                className="input"
               />
               <button onClick={submitComplaint} className="btn btn-primary" disabled={submitting}>
                 {submitting ? "Submitting..." : "Submit Complaint"}
@@ -249,54 +506,44 @@ export default function UserDashboard() {
         </div>
       )}
 
-      <section className="card">
-        <div className="card-header">
-          <div>
-            <h3>My Complaints</h3>
-            <p>{complaints.length} total complaints</p>
+      {showFeedback && (
+        <div className="modal-backdrop" onClick={() => setShowFeedback(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Rate Resolution</h3>
+                <p>Let us know how satisfied you are with the resolution.</p>
+              </div>
+              <button className="icon-btn" type="button" aria-label="Close" onClick={() => setShowFeedback(false)}>
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path fill="currentColor" d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3 1.4 1.4Z" />
+                </svg>
+              </button>
+            </div>
+            <div className="form-grid">
+              <label className="field-label">Rating</label>
+              <select className="select" value={feedbackRating} onChange={(e) => setFeedbackRating(Number(e.target.value))}>
+                <option value={5}>5 - Excellent</option>
+                <option value={4}>4 - Good</option>
+                <option value={3}>3 - Okay</option>
+                <option value={2}>2 - Poor</option>
+                <option value={1}>1 - Bad</option>
+              </select>
+              <label className="field-label">Comment</label>
+              <textarea
+                placeholder="Share feedback (optional)"
+                value={feedbackComment}
+                onChange={(e) => setFeedbackComment(e.target.value)}
+                className="textarea"
+              />
+              <button className="btn btn-primary" onClick={saveFeedback} disabled={feedbackSaving}>
+                {feedbackSaving ? "Saving..." : "Submit Feedback"}
+              </button>
+              {feedbackError && <div className="error-text">{feedbackError}</div>}
+            </div>
           </div>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="select filter-select">
-            <option>All</option>
-            <option>New</option>
-            <option>In Progress</option>
-            <option>Solved</option>
-          </select>
         </div>
-        {loading && <div className="empty">Loading requests...</div>}
-        {!loading && filteredComplaints.length === 0 && (
-          <div className="empty">No requests found for selected filter.</div>
-        )}
-        {!loading && filteredComplaints.length > 0 && (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Title</th>
-                  <th>Category</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Assigned To</th>
-                  <th>Remarks</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredComplaints.map((c) => (
-                  <tr key={c._id}>
-                    <td>{c.requestId}</td>
-                    <td>{c.title}</td>
-                    <td><span className="tag">{c.category}</span></td>
-                    <td><span className={statusClass(c.status)}>{c.status}</span></td>
-                    <td>{c.date || "-"}</td>
-                    <td>{assignedTo(c.category)}</td>
-                    <td>{c.adminRemarks || "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      )}
     </div>
   );
 }

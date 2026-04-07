@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const mongoose = require("mongoose");
@@ -17,6 +18,7 @@ app.use(applySecurityHeaders);
 app.use(createRateLimiter({ windowMs: 15 * 60 * 1000, max: 300 }));
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/", (req, res) => {
   res.send("Smart Request Categorization Backend Running");

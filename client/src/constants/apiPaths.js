@@ -10,11 +10,14 @@ export const API_ENDPOINTS = {
   USER: {
     COMPLAINTS: `${apiBase}/complaints`,
     COMPLAINT_BY_ID: (id) => `${apiBase}/complaints/${id}`,
+    FEEDBACK_BY_ID: (id) => `${apiBase}/complaints/${id}/feedback`,
   },
   ADMIN: {
     COMPLAINTS: `${apiBase}/admin/complaints`,
     COMPLAINT_BY_ID: (id) => `${apiBase}/admin/complaint/${id}`,
     REMARKS_BY_ID: (id) => `${apiBase}/admin/complaint/${id}/remarks`,
+    STATS: `${apiBase}/admin/stats`,
+    ANALYTICS: `${apiBase}/admin/analytics`,
     USERS: `${apiBase}/admin/users`,
     USER_BY_ID: (id) => `${apiBase}/admin/users/${id}`,
     ADMINS: `${apiBase}/admin/admins`,
