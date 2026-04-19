@@ -28,11 +28,6 @@ export default function AdminReports() {
     const progress = complaints.filter((c) => c.status === "In Progress").length;
     const fresh = complaints.filter((c) => c.status === "New").length;
 
-    const byCategory = complaints.reduce((acc, c) => {
-      acc[c.category] = (acc[c.category] || 0) + 1;
-      return acc;
-    }, {});
-
     const byStatus = complaints.reduce((acc, c) => {
       acc[c.status] = (acc[c.status] || 0) + 1;
       return acc;
@@ -53,7 +48,7 @@ export default function AdminReports() {
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
       .slice(0, 8);
 
-    return { total, open, solved, progress, fresh, byCategory, byStatus, avgCloseHours, resolutionRate, recent };
+    return { total, open, solved, progress, fresh, byStatus, avgCloseHours, resolutionRate, recent };
   }, [complaints]);
 
   return (
@@ -96,31 +91,6 @@ export default function AdminReports() {
             <p>Open Backlog</p>
             <h3>{summary.open}</h3>
           </div>
-        </div>
-
-        <div className="table-wrap" style={{ marginTop: 14 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Requests</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.keys(summary.byCategory).length === 0 ? (
-                <tr>
-                  <td colSpan="2">No category data yet.</td>
-                </tr>
-              ) : (
-                Object.entries(summary.byCategory).map(([category, count]) => (
-                  <tr key={category}>
-                    <td>{category}</td>
-                    <td>{count}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
         </div>
 
         <div className="table-wrap" style={{ marginTop: 14 }}>

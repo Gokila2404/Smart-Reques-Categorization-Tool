@@ -94,6 +94,14 @@ const complaintSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+    hiddenForUser: {
+      type: Boolean,
+      default: false,
+    },
+    hiddenForUserAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

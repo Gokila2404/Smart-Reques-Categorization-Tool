@@ -1,13 +1,76 @@
 const Complaint = require("../models/Complaint");
 const User = require("../models/User");
+const categorizeComplaint = require("../utils/categorize");
+const determinePriority = require("../utils/priority");
 
 const userProjection = "_id name email role adminDomain createdAt updatedAt";
 
+const getAdminComplaintQuery = (adminUser, extra = {}) => {
+  const query = { ...extra };
+  if (adminUser.adminDomain && adminUser.adminDomain !== "General") {
+    query.category = adminUser.adminDomain;
+  }
+  return query;
+};
+
+const assignAdminByCategory = async (category, fallbackAdminId = null) => {
+  const admin = await User.findOne({ role: "admin", adminDomain: category }).select("_id");
+  if (admin) return admin._id;
+
+  const fallback = await User.findOne({ role: "admin", adminDomain: "General" }).select("_id");
+  return fallback ? fallback._id : fallbackAdminId;
+};
+
+exports.createAdminComplaint = async (req, res) => {
+  try {
+    const { userId, title, place = "", date = "", time = "", description, priority } = req.body;
+
+    const targetUser = await User.findOne({ _id: userId, role: "user" }).select("_id");
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const category = categorizeComplaint(description);
+    if (req.user.adminDomain && req.user.adminDomain !== "General" && category !== req.user.adminDomain) {
+      return res.status(403).json({ message: "You can only create complaints in your admin domain" });
+    }
+
+    const resolvedPriority = priority || determinePriority(title, description);
+    const assignedAdminId = await assignAdminByCategory(category, req.user.id);
+
+    const complaint = await Complaint.create({
+      title: title.trim(),
+      place: place.trim(),
+      date: date.trim(),
+      time: time.trim(),
+      description: description.trim(),
+      category,
+      priority: resolvedPriority,
+      userId: targetUser._id,
+      adminId: assignedAdminId,
+      statusHistory: [
+        {
+          action: "Created by Admin",
+          status: "New",
+          note: "Complaint created from admin dashboard",
+          by: req.user.id,
+        },
+      ],
+    });
+
+    const populated = await Complaint.findById(complaint._id)
+      .populate("userId", "name email")
+      .populate("adminId", "name email");
+
+    return res.status(201).json(populated);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 exports.getAdminComplaints = async (req, res) => {
   try {
-    const query = req.user.adminDomain && req.user.adminDomain !== "General"
-      ? { category: req.user.adminDomain }
-      : {};
+    const query = getAdminComplaintQuery(req.user);
 
     const complaints = await Complaint.find(query)
       .sort({ createdAt: -1 })
@@ -23,11 +86,7 @@ exports.getAdminComplaints = async (req, res) => {
 exports.getAdminComplaintById = async (req, res) => {
   try {
     const { id } = req.params;
-    const query = { _id: id };
-
-    if (req.user.adminDomain && req.user.adminDomain !== "General") {
-      query.category = req.user.adminDomain;
-    }
+    const query = getAdminComplaintQuery(req.user, { _id: id });
 
     const complaint = await Complaint.findOne(query)
       .populate("userId", "name email")
@@ -48,7 +107,7 @@ exports.updateComplaintStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const complaint = await Complaint.findById(id);
+    const complaint = await Complaint.findOne(getAdminComplaintQuery(req.user, { _id: id }));
     if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
     }
@@ -77,7 +136,7 @@ exports.addAdminRemarks = async (req, res) => {
     const { id } = req.params;
     const { remarks } = req.body;
 
-    const complaint = await Complaint.findById(id);
+    const complaint = await Complaint.findOne(getAdminComplaintQuery(req.user, { _id: id }));
     if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
     }
@@ -93,6 +152,73 @@ exports.addAdminRemarks = async (req, res) => {
     await complaint.save();
 
     return res.json(complaint);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.updateAdminComplaint = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const complaint = await Complaint.findOne(getAdminComplaintQuery(req.user, { _id: id }));
+
+    if (!complaint) {
+      return res.status(404).json({ message: "Complaint not found" });
+    }
+
+    const { title, place, date, time, description, priority, status, userId, adminRemarks } = req.body;
+
+    if (userId !== undefined && userId !== String(complaint.userId)) {
+      const targetUser = await User.findOne({ _id: userId, role: "user" }).select("_id");
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      complaint.userId = targetUser._id;
+    }
+
+    if (title !== undefined) complaint.title = title.trim();
+    if (place !== undefined) complaint.place = place.trim();
+    if (date !== undefined) complaint.date = date.trim();
+    if (time !== undefined) complaint.time = time.trim();
+    if (priority !== undefined) complaint.priority = priority;
+    if (status !== undefined) complaint.status = status;
+    if (adminRemarks !== undefined) complaint.adminRemarks = adminRemarks;
+
+    if (description !== undefined) {
+      const nextDescription = description.trim();
+      const nextCategory = categorizeComplaint(nextDescription);
+
+      if (req.user.adminDomain && req.user.adminDomain !== "General" && nextCategory !== req.user.adminDomain) {
+        return res.status(403).json({ message: "You can only move complaints within your admin domain" });
+      }
+
+      complaint.description = nextDescription;
+      complaint.category = nextCategory;
+      complaint.adminId = await assignAdminByCategory(nextCategory, req.user.id);
+    } else {
+      complaint.adminId = complaint.adminId || req.user.id;
+    }
+
+    complaint.statusHistory.push({
+      action: "Admin Update",
+      status: complaint.status,
+      note: "Complaint details updated by admin",
+      by: req.user.id,
+    });
+
+    if (complaint.status === "Solved") {
+      complaint.solvedAt = complaint.solvedAt || new Date();
+    } else {
+      complaint.solvedAt = null;
+    }
+
+    await complaint.save();
+
+    const updated = await Complaint.findById(complaint._id)
+      .populate("userId", "name email")
+      .populate("adminId", "name email");
+
+    return res.json(updated);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -149,7 +275,7 @@ exports.getAdminById = async (req, res) => {
 exports.deleteComplaint = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await Complaint.findByIdAndDelete(id);
+    const deleted = await Complaint.findOneAndDelete(getAdminComplaintQuery(req.user, { _id: id }));
 
     if (!deleted) {
       return res.status(404).json({ message: "Complaint not found" });

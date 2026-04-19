@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useContext } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { ROUTES } from "../constants/paths";
@@ -14,6 +14,9 @@ export default function NotificationsPanel({ role, variant = "page", onClose }) 
   const [dismissed, setDismissed] = useState(new Set());
   const [readSet, setReadSet] = useState(new Set());
   const [statusMap, setStatusMap] = useState({});
+  const dismissedRef = useRef(new Set());
+  const readSetRef = useRef(new Set());
+  const statusMapRef = useRef({});
 
   const keyPrefix = role === "admin" ? "srct_admin_notifications" : "srct_user_notifications";
   const dismissedKey = `${keyPrefix}_dismissed_${auth?.user?.id || auth?.user?.email || "default"}`;
@@ -32,6 +35,10 @@ export default function NotificationsPanel({ role, variant = "page", onClose }) 
   }, [dismissedKey]);
 
   useEffect(() => {
+    dismissedRef.current = dismissed;
+  }, [dismissed]);
+
+  useEffect(() => {
     const raw = localStorage.getItem(readKey);
     if (raw) {
       try {
@@ -43,6 +50,10 @@ export default function NotificationsPanel({ role, variant = "page", onClose }) 
   }, [readKey]);
 
   useEffect(() => {
+    readSetRef.current = readSet;
+  }, [readSet]);
+
+  useEffect(() => {
     const raw = localStorage.getItem(statusKey);
     if (raw) {
       try {
@@ -52,6 +63,10 @@ export default function NotificationsPanel({ role, variant = "page", onClose }) 
       }
     }
   }, [statusKey]);
+
+  useEffect(() => {
+    statusMapRef.current = statusMap;
+  }, [statusMap]);
 
   const persistDismissed = useCallback((nextSet) => {
     localStorage.setItem(dismissedKey, JSON.stringify([...nextSet]));
@@ -99,14 +114,14 @@ export default function NotificationsPanel({ role, variant = "page", onClose }) 
 
       const changes = [];
       Object.entries(nextStatus).forEach(([id, status]) => {
-        if (statusMap[id] && statusMap[id] !== status) {
+        if (statusMapRef.current[id] && statusMapRef.current[id] !== status) {
           changes.push(id);
         }
       });
 
       if (changes.length > 0) {
-        const nextDismissed = new Set(dismissed);
-        const nextRead = new Set(readSet);
+        const nextDismissed = new Set(dismissedRef.current);
+        const nextRead = new Set(readSetRef.current);
         changes.forEach((id) => nextDismissed.delete(id));
         changes.forEach((id) => nextRead.delete(id));
         setDismissed(nextDismissed);
@@ -131,7 +146,7 @@ export default function NotificationsPanel({ role, variant = "page", onClose }) 
     } finally {
       setLoading(false);
     }
-  }, [auth.token, dismissed, persistDismissed, persistRead, persistStatus, readSet, role, statusMap]);
+  }, [auth?.token, persistDismissed, persistRead, persistStatus, role]);
 
   useEffect(() => {
     if (!auth?.token) return;

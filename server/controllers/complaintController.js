@@ -60,7 +60,7 @@ exports.createComplaint = async (req, res) => {
 
 exports.getMyComplaints = async (req, res) => {
   try {
-    const complaints = await Complaint.find({ userId: req.user.id })
+    const complaints = await Complaint.find({ userId: req.user.id, hiddenForUser: { $ne: true } })
       .sort({ createdAt: -1 })
       .populate("adminId", "name email");
 
@@ -73,7 +73,7 @@ exports.getMyComplaints = async (req, res) => {
 exports.getMyComplaintById = async (req, res) => {
   try {
     const { id } = req.params;
-    const complaint = await Complaint.findOne({ _id: id, userId: req.user.id })
+    const complaint = await Complaint.findOne({ _id: id, userId: req.user.id, hiddenForUser: { $ne: true } })
       .populate("adminId", "name email")
       .populate("userId", "name email");
 
@@ -90,7 +90,7 @@ exports.getMyComplaintById = async (req, res) => {
 exports.updateMyComplaint = async (req, res) => {
   try {
     const { id } = req.params;
-    const complaint = await Complaint.findOne({ _id: id, userId: req.user.id });
+    const complaint = await Complaint.findOne({ _id: id, userId: req.user.id, hiddenForUser: { $ne: true } });
 
     if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
@@ -130,7 +130,7 @@ exports.addFeedback = async (req, res) => {
     const { id } = req.params;
     const { rating, comment = "" } = req.body;
 
-    const complaint = await Complaint.findOne({ _id: id, userId: req.user.id });
+    const complaint = await Complaint.findOne({ _id: id, userId: req.user.id, hiddenForUser: { $ne: true } });
     if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
     }
@@ -160,13 +160,24 @@ exports.addFeedback = async (req, res) => {
 exports.deleteMyComplaint = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await Complaint.findOneAndDelete({ _id: id, userId: req.user.id });
+    const complaint = await Complaint.findOne({ _id: id, userId: req.user.id });
 
-    if (!deleted) {
+    if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
     }
 
-    return res.json({ message: "Complaint deleted successfully" });
+    complaint.hiddenForUser = true;
+    complaint.hiddenForUserAt = new Date();
+    complaint.statusHistory.push({
+      action: "Hidden by User",
+      status: complaint.status,
+      note: "Complaint removed from user dashboard",
+      by: req.user.id,
+    });
+
+    await complaint.save();
+
+    return res.json({ message: "Complaint removed from your dashboard" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

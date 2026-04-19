@@ -56,8 +56,18 @@ export const getAdminComplaints = async (token) => {
   return res.data;
 };
 
+export const createAdminComplaint = async (data, token) => {
+  const res = await client.post(API_ENDPOINTS.ADMIN.COMPLAINTS, data, authHeaders(token));
+  return res.data;
+};
+
 export const getAdminComplaintById = async (id, token) => {
   const res = await client.get(API_ENDPOINTS.ADMIN.COMPLAINT_BY_ID(id), authHeaders(token));
+  return res.data;
+};
+
+export const updateAdminComplaint = async (id, data, token) => {
+  const res = await client.put(API_ENDPOINTS.ADMIN.COMPLAINT_DETAILS_BY_ID(id), data, authHeaders(token));
   return res.data;
 };
 
@@ -83,5 +93,10 @@ export const getAdminStats = async (token) => {
 
 export const getAdminAnalytics = async (token) => {
   const res = await client.get(API_ENDPOINTS.ADMIN.ANALYTICS, authHeaders(token));
+  return res.data;
+};
+
+export const getUsers = async (token) => {
+  const res = await client.get(API_ENDPOINTS.ADMIN.USERS, authHeaders(token));
   return res.data;
 };
