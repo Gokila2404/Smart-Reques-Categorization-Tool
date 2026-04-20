@@ -2132,6 +2132,26 @@ a {
   }
 }
 
+@media (max-width: 560px) {
+  .complaints-table-admin th:nth-child(2),
+  .complaints-table-admin td:nth-child(2) {
+    display: none;
+  }
+
+  .complaints-table-wrap .table {
+    min-width: max(100%, 520px);
+  }
+
+  .complaints-table .table-actions {
+    min-width: 104px;
+  }
+
+  .complaints-table .table-actions .btn {
+    padding: 5px 8px;
+    font-size: 0.72rem;
+  }
+}
+
 @media (max-width: 520px) {
   .user-topbar,
   .user-hero,
