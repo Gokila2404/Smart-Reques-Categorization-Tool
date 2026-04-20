@@ -510,8 +510,8 @@ const AdminDashboard = () => {
                 )}
                 {!loading && filteredComplaints.length > 0 && (
                   <>
-                    <div className="table-wrap">
-                      <table className="table">
+                    <div className="table-wrap complaints-table-wrap">
+                      <table className="table complaints-table complaints-table-admin">
                         <thead>
                           <tr>
                             <th>ID</th>

@@ -33,6 +33,7 @@ body {
   margin: 0;
   font-family: "Manrope", sans-serif;
   color: var(--ink);
+  overflow-x: hidden;
   background:
     radial-gradient(circle at 5% 10%, #c6f0ef 0%, transparent 28%),
     radial-gradient(circle at 95% 90%, #d6eaff 0%, transparent 30%),
@@ -280,11 +281,12 @@ a {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .page {
   min-height: 100vh;
-  padding: 28px;
+  padding: clamp(16px, 2.5vw, 28px);
 }
 
 .panel {
@@ -381,6 +383,46 @@ a {
 .table-wrap {
   width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+
+.complaints-table-wrap .table th,
+.complaints-table-wrap .table td {
+  white-space: nowrap;
+}
+
+.complaints-table-wrap .table th:last-child,
+.complaints-table-wrap .table td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  background: #ffffff;
+  box-shadow: -8px 0 12px rgba(15, 23, 42, 0.06);
+}
+
+.complaints-table-wrap .table th:last-child {
+  z-index: 3;
+}
+
+.complaints-table-wrap {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+
+.complaints-table-wrap .table {
+  width: max-content;
+  min-width: max(100%, 1100px);
+}
+
+.complaints-table .table-actions {
+  min-width: 128px;
 }
 
 .complaint-cards {
@@ -753,9 +795,9 @@ a {
 }
 
 .table {
-  width: 100%;
+  width: max-content;
   border-collapse: collapse;
-  min-width: 1120px;
+  min-width: max(100%, 920px);
 }
 
 .table th,
@@ -820,6 +862,8 @@ a {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .icon-btn {
@@ -880,7 +924,7 @@ a {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(240px, 320px) 1fr;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   gap: var(--gap-3);
   padding: 0 28px 16px;
   align-items: start;
@@ -921,7 +965,9 @@ a {
 .complaints-scroll {
   min-height: 0;
   overflow-y: auto;
+  overflow-x: auto;
   padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .analytics-dashboard-panel {
@@ -1391,6 +1437,42 @@ a {
   }
 }
 
+@media (max-width: 1200px) {
+  .user-topbar {
+    padding: 12px 20px;
+  }
+
+  .user-hero {
+    padding: 20px 20px 8px;
+  }
+
+  .dashboard-tabs {
+    padding: 0 20px 10px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    padding: 0 20px 16px;
+  }
+
+  .dashboard-grid .user-kpis {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .analytics-board {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-hero {
+    flex-direction: column;
+  }
+
+  .detail-hero-actions {
+    min-width: 0;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
 @media (max-width: 980px) {
   .user-shell {
     height: auto;
@@ -1431,8 +1513,10 @@ a {
   }
 
   .complaints-scroll {
-    overflow: visible;
+    overflow-y: visible;
+    overflow-x: auto;
     padding-right: 0;
+    -webkit-overflow-scrolling: touch;
   }
 
   .analytics-dashboard-panel {
@@ -1442,11 +1526,16 @@ a {
   }
 
   .table-wrap {
-    display: none;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
   }
 
   .complaint-cards {
-    display: grid;
+    display: none;
   }
 
   .analytics-grid {
@@ -1998,6 +2087,84 @@ a {
   }
 }
 
+@media (max-width: 900px) {
+  .complaints-table-user th:nth-child(1),
+  .complaints-table-user td:nth-child(1),
+  .complaints-table-user th:nth-child(5),
+  .complaints-table-user td:nth-child(5) {
+    display: none;
+  }
+
+  .complaints-table-admin th:nth-child(1),
+  .complaints-table-admin td:nth-child(1),
+  .complaints-table-admin th:nth-child(7),
+  .complaints-table-admin td:nth-child(7) {
+    display: none;
+  }
+
+  .complaints-table-wrap .table {
+    min-width: max(100%, 860px);
+  }
+}
+
+@media (max-width: 680px) {
+  .complaints-table-user th:nth-child(3),
+  .complaints-table-user td:nth-child(3) {
+    display: none;
+  }
+
+  .complaints-table-admin th:nth-child(4),
+  .complaints-table-admin td:nth-child(4),
+  .complaints-table-admin th:nth-child(5),
+  .complaints-table-admin td:nth-child(5) {
+    display: none;
+  }
+
+  .complaints-table-wrap .table {
+    min-width: max(100%, 700px);
+  }
+}
+
+@media (max-width: 520px) {
+  .user-topbar,
+  .user-hero,
+  .dashboard-tabs,
+  .dashboard-grid {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .top-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .user-chip {
+    width: 100%;
+  }
+
+  .analytics-hero-rate strong,
+  .detail-hero h1 {
+    word-break: break-word;
+  }
+
+  .card-header,
+  .section-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filter-select {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .notif-actions,
+  .table-actions {
+    width: 100%;
+  }
+}
+
 @media (max-width: 600px) {
   .auth-shell {
     padding: 16px;
@@ -2030,6 +2197,10 @@ a {
 
   .user-chip {
     flex-wrap: wrap;
+  }
+
+  .table {
+    min-width: 760px;
   }
 }
 

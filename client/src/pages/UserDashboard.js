@@ -384,8 +384,8 @@ export default function UserDashboard() {
               )}
               {!loading && filteredComplaints.length > 0 && (
                 <>
-                  <div className="table-wrap">
-                    <table className="table">
+                  <div className="table-wrap complaints-table-wrap">
+                    <table className="table complaints-table complaints-table-user">
                       <thead>
                         <tr>
                           <th>ID</th>
