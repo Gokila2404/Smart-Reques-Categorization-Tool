@@ -27,6 +27,8 @@ html,
 body,
 #root {
   min-height: 100%;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -287,6 +289,7 @@ a {
 .page {
   min-height: 100vh;
   padding: clamp(16px, 2.5vw, 28px);
+  overflow-x: hidden;
 }
 
 .panel {
@@ -920,6 +923,7 @@ a {
   gap: var(--gap-3);
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
 }
 
 .dashboard-grid {
@@ -929,6 +933,7 @@ a {
   padding: 0 28px 16px;
   align-items: start;
   min-height: 0;
+  overflow-x: hidden;
 }
 
 .dashboard-grid-single {
@@ -960,6 +965,7 @@ a {
   min-height: 0;
   height: 100%;
   align-self: stretch;
+  overflow-x: hidden;
 }
 
 .complaints-scroll {
@@ -968,6 +974,7 @@ a {
   overflow-x: auto;
   padding-right: 4px;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .analytics-dashboard-panel {
